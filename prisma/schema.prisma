@@ -1,0 +1,201 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =======================
+// Existing Models
+// =======================
+
+model Lead {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Text
+  userId      String
+  name        String
+  email       String?
+  phoneNumber String?
+  leadSource  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Opportunity {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Text
+  userId      String
+  leadId      String?
+  product     String?
+  status      String?
+  details     String?   // New field added
+  startDate   DateTime?
+  lastTouch   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model UserMetrics {
+  id                  String   @default(dbgenerated("gen_random_uuid()")) @db.Text
+  userId              String   @unique
+  timeSaved           Int      @default(0)
+  askedForHuman       Int      @default(0)
+  humanMessages       Int      @default(0)
+  aiMessages          Int      @default(0)
+  mostInquiredProduct String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model FAQ {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Text
+  userId    String
+  question  String
+  answer    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UniqueNewQuestion {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Text
+  userId    String
+  question  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DailyMessageCount {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Text
+  userId       String
+  date         DateTime
+  messageCount Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Conversation {
+  id                     String                @id @default(dbgenerated("gen_random_uuid()")) @db.Text
+  userId                 String
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  recipientPageScopeId   String?               // Page-scoped user ID of the conversation’s recipient (Facebook)
+  messages               ConversationMessage[]
+  
+  // New field to indicate if the AI can reply to this conversation
+  aiMode                 Boolean               @default(true) // true if AI is able to reply, false if not
+
+  // Optional fields for "winning" conversations
+  isWinning              Boolean?              @default(false)
+  callToAction           String?
+
+  // Back-relation to MessageAnalysis
+  messageAnalyses        MessageAnalysis[]
+
+  // New field for the most inquired product
+  mostInquiredProduct    String                @default("None")
+}
+
+
+
+model ConversationMessage {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Text
+  conversationId String
+  content        String
+  sender         String
+  sentByAI       Boolean        @default(false)
+  source         String?
+  date           DateTime       @default(now())
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  conversation   Conversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  // Back-relation to MessageAnalysis
+  messageAnalyses MessageAnalysis[]
+}
+
+
+// =======================
+// New/Modified Models for “Setup”
+// =======================
+
+// Updated to have predefined platforms as booleans, plus Facebook credentials for Messenger integration
+model UserChannel {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Text
+  userId               String
+  website              Boolean  @default(false)
+  messenger            Boolean  @default(false)
+  instagram            Boolean  @default(false)
+  telegram             Boolean  @default(false)
+  whatsapp             Boolean  @default(false)
+  viber                Boolean  @default(false)
+  discord              Boolean  @default(false)
+  slack                Boolean  @default(false)
+  fbPageName           String?
+  facebookPageId       String?
+  facebookAccessToken  String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+// 2. AI Assistant Setup
+model AIAssistantSetup {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Text
+  userId        String
+  assistantName String
+  persona       String
+  instructions  String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// 3. Business Information (Google Doc + extracted sections)
+model BusinessInfo {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Text
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 4. Analyze Messages
+model MessageAnalysis {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Text
+  userId                 String
+  conversationId         String?
+  conversationMessageId  String?
+  analysis               String
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  conversation           Conversation?        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationMessage    ConversationMessage? @relation(fields: [conversationMessageId], references: [id], onDelete: Cascade)
+}
+
+// 5. Conversation Flow
+model ConversationFlow {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Text
+  userId    String
+  title     String?  // newly added field
+  flow      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 6. Qualifying Questions
+model QualifyingQuestion {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Text
+  userId    String
+  question  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Product {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Text
+  userId      String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
