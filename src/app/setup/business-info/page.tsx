@@ -2,9 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase-client"
-
-import { CONSTANTS } from "@/lib/constants"
 import { SessionHandler } from "@/lib/sessions-lib"
 import { BusinessInfoHandler, BusinessInfo, Product } from "@/lib/businessinfo-lib"
 
