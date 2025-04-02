@@ -157,4 +157,23 @@ export class Chat {
 
       onSuccess(conversationWithMessages)
     }
+
+    registerConversationTableListener(onRecordInserted: any) {
+        const subscription = supabase
+        .channel('conversation-messages-all')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'ConversationMessage'
+          },
+          onRecordInserted
+        )
+        .subscribe()
+  
+      return () => {
+        supabase.removeChannel(subscription)
+      }
+    }
 }

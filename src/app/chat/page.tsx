@@ -97,49 +97,37 @@ export default function ChatPage() {
   // Called when the conversation list scrolls to the bottom.
   const loadMoreConversations = () => {
     if (!loading && hasMore) {
-      setPage(prev => prev + 1)
+      setPage((prev: any) => prev + 1)
     }
   }
 
   // Global realtime subscription for all conversation messages
   useEffect(() => {
     console.log('before subscription')
-    const subscription = supabase
-      .channel('conversation-messages-all')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'ConversationMessage'
-        },
-        (payload: { new: DBMessage }) => {
-          const newMsg = payload.new
-          // Update the conversation list if this conversation is already loaded.
-          setConversations((prevConversations) =>
-            prevConversations.map((conv) => {
-              if (conv.id === newMsg.conversationId) {
-                return { ...conv, latestMessage: newMsg }
-              }
-              return conv
-            })
-          )
-          // If the currently selected conversation matches, update its messages.
-          setSelectedConversation((prev) => {
-            if (prev && prev.id === newMsg.conversationId) {
-              const messages = prev.messages || []
-              if (messages.find((msg) => msg.id === newMsg.id)) return prev
-              return { ...prev, messages: [...messages, newMsg] }
+    return chatInterface.registerConversationTableListener((payload: { new: DBMessage }) => {
+        
+        const newMsg = payload.new
+        
+        // Update the conversation list if this conversation is already loaded.
+        setConversations((prevConversations: any) =>
+          prevConversations.map((conv: any) => {
+            if (conv.id === newMsg.conversationId) {
+              return { ...conv, latestMessage: newMsg }
             }
-            return prev
+            return conv
           })
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(subscription)
-    }
+        )
+        
+        // If the currently selected conversation matches, update its messages.
+        setSelectedConversation((prev: any) => {
+          if (prev && prev.id === newMsg.conversationId) {
+            const messages = prev.messages || []
+            if (messages.find((msg: any) => msg.id === newMsg.id)) return prev
+            return { ...prev, messages: [...messages, newMsg] }
+          }
+          return prev
+        })
+      })
   }, [])
 
   return (
