@@ -7,8 +7,8 @@ import { supabase } from "@/lib/supabase-client"
 import ChatList from "./_components/chat-list"
 import ConversationView from "./_components/conversation-view"
 
-import { DBMessage, DBConversationWithLatest, Chat } from "@/lib/chat-lib"
 import { CONSTANTS } from "@/lib/constants"
+import { DBMessage, DBConversationWithLatest, Chat } from "@/lib/chat-lib"
 
 let chatInterface = new Chat();
 

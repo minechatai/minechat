@@ -4,28 +4,12 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase-client"
 
-/**
- * Interface for BusinessInfo.
- */
-interface BusinessInfo {
-  id: string
-  userId: string
-  content: string
-  createdAt: string
-  updatedAt: string
-}
+import { CONSTANTS } from "@/lib/constants"
+import { SessionHandler } from "@/lib/sessions-lib"
+import { BusinessInfoHandler, BusinessInfo, Product } from "@/lib/businessinfo-lib"
 
-/**
- * Interface for Product.
- */
-interface Product {
-  id: string
-  userId: string
-  name: string
-  description?: string
-  createdAt: string
-  updatedAt: string
-}
+let sessionHandler = new SessionHandler()
+let businessInfo = new BusinessInfoHandler()
 
 export default function SetupBusinessInfoPage() {
   const router = useRouter()
@@ -69,40 +53,38 @@ export default function SetupBusinessInfoPage() {
   // On mount: check session and fetch data
   useEffect(() => {
     runWithLoading(async () => {
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession()
-      if (sessionError) throw new Error("Error retrieving session.")
-      if (!session?.user) {
-        router.push("/auth")
-        return
-      }
-      setSessionUser(session.user)
-      await Promise.all([fetchBusinessInfos(session.user.id), fetchProducts(session.user.id)])
+        sessionHandler.initSession(
+            async (session: any) => {
+                setSessionUser(session.user)
+                await Promise.all([fetchBusinessInfos(session.user.id), fetchProducts(session.user.id)])
+            },
+            () => {
+                router.push("/auth")
+            }
+        )
     })
   }, [router])
 
   // Fetch BusinessInfo rows
   const fetchBusinessInfos = async (userId: string) => {
-    const { data, error } = await supabase
-      .from("BusinessInfo")
-      .select("*")
-      .eq("userId", userId)
-      .order("createdAt", { ascending: false })
-    if (error) throw new Error("Error fetching BusinessInfo: " + error.message)
-    setBusinessInfos(data as BusinessInfo[])
+    businessInfo.fetchBusinessInfo(
+        userId,
+        (data: any) => {
+            setBusinessInfos(data)
+        },
+        () => {}
+    )
   }
 
   // Fetch Product rows
   const fetchProducts = async (userId: string) => {
-    const { data, error } = await supabase
-      .from("Product")
-      .select("*")
-      .eq("userId", userId)
-      .order("createdAt", { ascending: false })
-    if (error) throw new Error("Error fetching products: " + error.message)
-    setProducts(data as Product[])
+    businessInfo.fetchProducts(
+        userId,
+        (data: any) => {
+            setProducts(data)
+        },
+        () => {}
+    );
   }
 
   // BusinessInfo CRUD operations
@@ -112,22 +94,15 @@ export default function SetupBusinessInfoPage() {
       return
     }
     await runWithLoading(async () => {
-      const { data, error } = await supabase
-        .from("BusinessInfo")
-        .insert([
-          {
-            id: crypto.randomUUID(),
-            userId: sessionUser.id,
-            content: newContent.trim(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        ])
-        .select()
-        .single()
-      if (error) throw new Error("Error creating BusinessInfo: " + error.message)
-      setBusinessInfos((prev) => [data as BusinessInfo, ...prev])
-      setNewContent("")
+      businessInfo.createBusinessInfo(
+        sessionUser.id,
+        newContent.trim(),
+        (data: any) => {
+            setBusinessInfos((prev: any) => [data, ...prev])
+            setNewContent("")
+        },
+        () => {}
+      )
     })
   }
 
@@ -142,18 +117,18 @@ export default function SetupBusinessInfoPage() {
       return
     }
     await runWithLoading(async () => {
-      const { data, error } = await supabase
-        .from("BusinessInfo")
-        .update({ content: editingContent.trim(), updatedAt: new Date().toISOString() })
-        .eq("id", editingId)
-        .select()
-        .single()
-      if (error) throw new Error("Error updating BusinessInfo: " + error.message)
-      setBusinessInfos((prev) =>
-        prev.map((item) => (item.id === editingId ? (data as BusinessInfo) : item))
+      businessInfo.updateBusinessInfo(
+        editingId,
+        editingContent.trim(),
+        (data: any) => {
+            setBusinessInfos((prev: any) =>
+              prev.map((item: any) => (item.id === editingId ? (data as BusinessInfo) : item))
+            )
+            setEditingId(null)
+            setEditingContent("")
+        },
+        () => {}
       )
-      setEditingId(null)
-      setEditingContent("")
     })
   }
 
@@ -161,9 +136,13 @@ export default function SetupBusinessInfoPage() {
     const confirmDelete = window.confirm("Are you sure you want to delete this entry?")
     if (!confirmDelete) return
     await runWithLoading(async () => {
-      const { error } = await supabase.from("BusinessInfo").delete().eq("id", id)
-      if (error) throw new Error("Error deleting BusinessInfo: " + error.message)
-      setBusinessInfos((prev) => prev.filter((item) => item.id !== id))
+      businessInfo.deleteBusinessInfo(
+        id,
+        (id: any) => {
+            setBusinessInfos((prev: any) => prev.filter((item: any) => item.id !== id))
+        },
+        () => {}
+      )
     })
   }
 
@@ -179,24 +158,17 @@ export default function SetupBusinessInfoPage() {
       return
     }
     await runWithLoading(async () => {
-      const { data, error } = await supabase
-        .from("Product")
-        .insert([
-          {
-            id: crypto.randomUUID(),
-            userId: sessionUser.id,
-            name: newProductName.trim(),
-            description: newProductDescription.trim(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        ])
-        .select()
-        .single()
-      if (error) throw new Error("Error creating product: " + error.message)
-      setProducts((prev) => [data as Product, ...prev])
-      setNewProductName("")
-      setNewProductDescription("")
+      businessInfo.createProduct(
+        sessionUser.id,
+        newProductName.trim(),
+        newProductDescription.trim(),
+        (data: any) => {
+            setProducts((prev: any) => [data as Product, ...prev])
+            setNewProductName("")
+            setNewProductDescription("")
+        },
+        () => {}
+      )
     })
   }
 
@@ -212,23 +184,20 @@ export default function SetupBusinessInfoPage() {
       return
     }
     await runWithLoading(async () => {
-      const { data, error } = await supabase
-        .from("Product")
-        .update({
-          name: editingProductName.trim(),
-          description: editingProductDescription.trim(),
-          updatedAt: new Date().toISOString(),
-        })
-        .eq("id", editingProductId)
-        .select()
-        .single()
-      if (error) throw new Error("Error updating product: " + error.message)
-      setProducts((prev) =>
-        prev.map((p) => (p.id === editingProductId ? (data as Product) : p))
+      businessInfo.updateProduct(
+        editingProductId,
+        editingProductName.trim(),
+        editingProductDescription.trim(),
+        (data: any) => {
+            setProducts((prev: any) =>
+              prev.map((p: any) => (p.id === editingProductId ? (data as Product) : p))
+            )
+            setEditingProductId(null)
+            setEditingProductName("")
+            setEditingProductDescription("")
+        },
+        () => {}
       )
-      setEditingProductId(null)
-      setEditingProductName("")
-      setEditingProductDescription("")
     })
   }
 
@@ -236,9 +205,13 @@ export default function SetupBusinessInfoPage() {
     const confirmDelete = window.confirm("Are you sure you want to delete this product?")
     if (!confirmDelete) return
     await runWithLoading(async () => {
-      const { error } = await supabase.from("Product").delete().eq("id", id)
-      if (error) throw new Error("Error deleting product: " + error.message)
-      setProducts((prev) => prev.filter((p) => p.id !== id))
+      businessInfo.deleteProduct(
+        id,
+        (id: string) => {
+            setProducts((prev: any) => prev.filter((p) => p.id !== id))
+        },
+        () => {}
+      )
     })
   }
 
