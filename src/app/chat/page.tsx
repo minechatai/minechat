@@ -7,30 +7,10 @@ import { supabase } from "@/lib/supabase-client"
 import ChatList from "./_components/chat-list"
 import ConversationView from "./_components/conversation-view"
 
-interface DBMessage {
-  id: string
-  conversationId: string
-  content: string
-  sender: string
-  source: string | null
-  date: string
-  createdAt: string
-  updatedAt: string
-}
+import { DBMessage, DBConversationWithLatest, Chat } from "@/lib/chat-lib"
+import { CONSTANTS } from "@/lib/constants"
 
-interface DBConversation {
-  id: string
-  userId: string
-  createdAt: string
-  updatedAt: string
-}
-
-export interface DBConversationWithLatest extends DBConversation {
-  aiMode?: boolean
-  recipientPageScopeId?: string | null
-  latestMessage?: DBMessage | null
-  messages?: DBMessage[]
-}
+let chatInterface = new Chat();
 
 export default function ChatPage() {
   const router = useRouter()
@@ -45,114 +25,56 @@ export default function ChatPage() {
   // Fetch fbPageName (runs once)
   useEffect(() => {
     const fetchUserChannel = async () => {
-      const { data: sessionData } = await supabase.auth.getSession()
-      if (!sessionData?.session) {
-        router.push("/auth")
-        return
-      }
-      const userId = sessionData.session.user.id
-      const { data, error } = await supabase
-        .from("UserChannel")
-        .select("fbPageName")
-        .eq("userId", userId)
-        .maybeSingle()
-
-        console.log(data, error)
-
-      if (error) {
-        console.error("Error fetching UserChannel:", error)
-      }
-      setFbPageName(data?.fbPageName || null)
+        chatInterface.fetchUserChannel(
+            (data: any) => {
+                setFbPageName(data?.fbPageName || null)
+            },
+            (errorCode: number, errorMessage: any) => {
+                if (errorCode == CONSTANTS.ERROR_AUTH) {
+                    router.push("/auth")
+                }
+                else {
+                    console.error("Error fetching UserChannel:", errorMessage)
+                }
+            }
+        )
     }
     fetchUserChannel()
   }, [router])
 
   // Fetch conversations using pagination (appended on page change)
   useEffect(() => {
+
     const fetchConversations = async () => {
       setLoading(true)
-      const { data: sessionData } = await supabase.auth.getSession()
-      if (!sessionData?.session) {
-        router.push("/auth")
-        return
-      }
-      const userId = sessionData.session.user.id
-      const { data, error } = await supabase
-        .from("Conversation")
-        .select("id, userId, createdAt, updatedAt, aiMode, recipientPageScopeId")
-        .eq("userId", userId)
-        .order("createdAt", { ascending: false })
-        .range(page * pageSize, (page + 1) * pageSize - 1)
-      
-      if (error) {
-        console.error("Error fetching conversations:", error)
-        setLoading(false)
-        return
-      }
-      if (data) {
-        // For each conversation, fetch its latest message.
-        // We try to get a message whose sender is not fbPageName.
-        const updatedConversations: DBConversationWithLatest[] = await Promise.all(
-          data.map(async (conv: DBConversationWithLatest) => {
-            let latestMessage: DBMessage | null = null
-            if (fbPageName) {
-              const { data: msgData, error: msgError } = await supabase
-                .from("ConversationMessage")
-                .select("*")
-                .eq("conversationId", conv.id)
-                .neq("sender", fbPageName)
-                .order("date", { ascending: false })
-                .limit(1)
-              if (msgError) {
-                console.error("Error fetching latest message for conversation", conv.id, msgError)
-              }
-              if (msgData && msgData.length > 0) {
-                latestMessage = msgData[0]
-              } else {
-                // Fallback: fetch the latest message regardless of sender.
-                const { data: fallbackData, error: fallbackError } = await supabase
-                  .from("ConversationMessage")
-                  .select("*")
-                  .eq("conversationId", conv.id)
-                  .order("date", { ascending: false })
-                  .limit(1)
-                if (fallbackError) {
-                  console.error("Error fetching fallback latest message for conversation", conv.id, fallbackError)
-                }
-                if (fallbackData && fallbackData.length > 0) {
-                  latestMessage = fallbackData[0]
-                }
-              }
-            } else {
-              // If fbPageName not set, just fetch the latest message.
-              const { data: msgData, error: msgError } = await supabase
-                .from("ConversationMessage")
-                .select("*")
-                .eq("conversationId", conv.id)
-                .order("date", { ascending: false })
-                .limit(1)
-              if (msgError) {
-                console.error("Error fetching latest message for conversation", conv.id, msgError)
-              }
-              if (msgData && msgData.length > 0) {
-                latestMessage = msgData[0]
-              }
+      await chatInterface.fetchConversations(
+        page * pageSize, 
+        (page + 1) * pageSize - 1,
+        fbPageName,
+        async (data: any) => {
+
+            if (data.length < pageSize) {
+                setHasMore(false)
             }
-            return { ...conv, latestMessage }
-          })
-        )
-        if (data.length < pageSize) {
-          setHasMore(false)
+
+            if (page === 0) {
+                setConversations(data)
+            } else {
+                setConversations((prev: any) => [...prev, ...data])
+            }
+        },
+        (errorCode: number, errorMessage: any) => {
+            if (errorCode == CONSTANTS.ERROR_AUTH) {
+                router.push("/auth")
+            }
+            else {
+                console.error("Error fetching fetchConversations:", errorMessage)
+            }
         }
-        if (page === 0) {
-          setConversations(updatedConversations)
-        } else {
-          setConversations(prev => [...prev, ...updatedConversations])
-        }
-      }
+      )
       setLoading(false)
     }
-
+    
     fetchConversations().catch((err) => {
       console.error("Chat fetch error:", err)
       setLoading(false)
@@ -161,20 +83,15 @@ export default function ChatPage() {
 
   // When a conversation is selected, load its full messages.
   const handleSelectConversation = async (conversation: DBConversationWithLatest) => {
-    const { data, error } = await supabase
-      .from("ConversationMessage")
-      .select("*")
-      .eq("conversationId", conversation.id)
-      .order("date", { ascending: false })
-      .limit(100)
-    if (error) {
-      console.error("Error fetching conversation messages:", error)
-      return
-    }
-    // Reverse the messages to show them in chronological order (oldest first)
-    const messages = data ? data.reverse() : [];
-    const conversationWithMessages = { ...conversation, messages }
-    setSelectedConversation(conversationWithMessages)
+    chatInterface.getConversationMessages(
+        conversation,
+        (conversationWithMessages: any) => {
+            setSelectedConversation(conversationWithMessages)
+        },
+        (error: any) => {
+            console.error("Error fetching conversation messages:", error)
+        }
+    )
   }
 
   // Called when the conversation list scrolls to the bottom.
