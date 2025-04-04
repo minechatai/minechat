@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase-client"
+import { CONSTANTS } from "@/lib/constants"
+import { AIAssistantHandler } from "@/lib/aiassistant-lib"
+
+let aiAssistantInterface = new AIAssistantHandler()
 
 export default function SetupAssistantPage() {
   const router = useRouter()
@@ -17,41 +21,37 @@ export default function SetupAssistantPage() {
 
   useEffect(() => {
     const fetchData = async () => {
-      // Check for a session
-      const { data: sessionData } = await supabase.auth.getSession()
-      if (!sessionData?.session) {
-        console.log("No session found, redirecting to /auth")
-        router.push("/auth")
-        return
-      }
-
-      const userId = sessionData.session.user.id
-      console.log("Current User ID:", userId)
-
-      // Fetch existing row for this user
-      const { data: existing, error } = await supabase
-        .from("AIAssistantSetup")
-        .select("*")
-        .eq("userId", userId)
-        .maybeSingle()
-
-      console.log(existing, error)
-
-      if (error || !existing) {
-        // If no row is found, log it, set error message in state
-        console.log("No existing row found for user:", userId, "Error:", error)
-        setErrorMessage("We can't find an existing row. Please create one first.")
-        setLoading(false)
-        return
-      }
-
-      // If we do find the row, log it and populate the form
-      console.log("Found existing row for user:", userId, existing)
-      setAssistant({
-        assistantName: existing.assistantName,
-        persona: existing.persona,
-        instructions: existing.instructions
-      })
+      aiAssistantInterface.load(
+        (existing: any) => {
+          setAssistant({
+            assistantName: existing.assistantName,
+            persona: existing.persona,
+            instructions: existing.instructions
+          })
+        },
+        (error: number, msg: any) => {
+          switch(error) {
+            case CONSTANTS.ERROR_AUTH: {
+              console.error("Session error:", msg)
+              router.push("/auth")
+              break;
+            }
+            case CONSTANTS.ERROR_SESSION: {
+              console.error("No active session. Redirecting to /auth.")
+              router.push("/auth")
+              break;
+            }
+            case CONSTANTS.ERROR_SESSION_NO_ID: {
+              console.error("Invalid user ID found. Redirecting to /auth.")
+              router.push("/auth")
+              break;
+            }
+            default: {
+              console.error("Generic error occured:", msg)
+            }
+          }
+        }
+      )
       setLoading(false)
     }
 
@@ -67,51 +67,35 @@ export default function SetupAssistantPage() {
 
   async function handleSave() {
     setLoading(true)
-
-    try {
-      const { data: sessionData } = await supabase.auth.getSession()
-      if (!sessionData?.session?.user?.id) {
-        console.log("No user session on save, redirecting to /auth")
-        router.push("/auth")
-        return
-      }
-
-      const userId = sessionData.session.user.id
-      console.log("Saving data for user:", userId)
-
-      // Check if a record exists (should exist in this scenario, but we check again anyway)
-      const { data: existing } = await supabase
-        .from("AIAssistantSetup")
-        .select("id")
-        .eq("userId", userId)
-        .single()
-
-      if (!existing) {
-        console.log("No existing row found in handleSave, cannot update. Consider your logic here.")
-        // If you want to allow creation here, you could do so:
-        // await supabase.from("AIAssistantSetup").insert({...})
-      } else {
-        // Update existing record
-        const { error } = await supabase
-          .from("AIAssistantSetup")
-          .update({
-            assistantName: assistant.assistantName,
-            persona: assistant.persona,
-            instructions: assistant.instructions
-          })
-          .eq("id", existing.id)
-
-        if (error) {
-          console.error("Error updating AI Assistant Setup:", error)
-        } else {
-          console.log("AI Assistant Setup updated successfully")
+    aiAssistantInterface.save(
+      assistant,
+      () => {
+        console.log("AI Assistant Setup updated successfully")
+      },
+      (error: number, msg: any) => {
+        switch(error) {
+          case CONSTANTS.ERROR_AUTH: {
+            console.error("Session error:", msg)
+            router.push("/auth")
+            break;
+          }
+          case CONSTANTS.ERROR_SESSION: {
+            console.error("No active session. Redirecting to /auth.")
+            router.push("/auth")
+            break;
+          }
+          case CONSTANTS.ERROR_SESSION_NO_ID: {
+            console.error("Invalid user ID found. Redirecting to /auth.")
+            router.push("/auth")
+            break;
+          }
+          default: {
+            console.error("Generic error occured:", msg)
+          }
         }
       }
-    } catch (error) {
-      console.error("Error saving AI Assistant Setup:", error)
-    } finally {
-      setLoading(false)
-    }
+    )
+    setLoading(false)
   }
 
   if (loading) {
