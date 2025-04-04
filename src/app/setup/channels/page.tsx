@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase-client"
+import { Channels } from "@/lib/channels-lib"
+import { CONSTANTS } from "@/lib/constants"
+
+let channelsInterface = new Channels()
 
 export default function SetupChannelsPage() {
   const router = useRouter()
@@ -27,84 +31,35 @@ export default function SetupChannelsPage() {
   // On mount, fetch existing user channel row or create a new one.
   useEffect(() => {
     async function loadUserChannels() {
-      try {
-        // Check session on the client side.
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
-        if (sessionError) {
-          console.error("Session error:", sessionError.message)
-          return
-        }
-        if (!sessionData?.session) {
-          console.log("No active session. Redirecting to /auth.")
-          router.push("/auth")
-          return
-        }
-
-        // Get user ID.
-        const user = sessionData.session.user
-        if (!user?.id) {
-          console.log("No user ID found. Redirecting to /auth.")
-          router.push("/auth")
-          return
-        }
-        setUserId(user.id)
-
-        // Fetch the UserChannel row.
-        const { data: existingRow, error: fetchError } = await supabase
-          .from("UserChannel")
-          .select("*")
-          .eq("userId", user.id)
-          .single()
-
-        if (fetchError) {
-          console.warn("Could not fetch UserChannel:", fetchError.message)
-        }
-
-        // Create a row if none found.
-        let userChannel = existingRow
-        if (!userChannel) {
-          console.log("No UserChannel row found. Creating a new one...")
-          
-          let newRecord = { 
-            userId: user.id, 
-            updatedAt: new Date(),
-            ...channels
+      channelsInterface.loadUserChannels(
+        (channelsInfo: any) => {
+          setUserId(channelsInfo.userId)
+          setChannels(channelsInfo.data)
+        },
+        (error: number, msg: any) => {
+          switch(error) {
+            case CONSTANTS.ERROR_AUTH: {
+              console.error("Session error:", msg)
+              router.push("/auth")
+              break;
+            }
+            case CONSTANTS.ERROR_SESSION: {
+              console.error("No active session. Redirecting to /auth.")
+              router.push("/auth")
+              break;
+            }
+            case CONSTANTS.ERROR_SESSION_NO_ID: {
+              console.error("Invalid user ID found. Redirecting to /auth.")
+              router.push("/auth")
+              break;
+            }
+            default: {
+              console.error("Generic error occured:", msg)
+            }
           }
-
-          console.log("Inserting new record: ", newRecord)
-
-          const { data: insertedRow, error: insertError } = await supabase
-            .from("UserChannel")
-            .insert(newRecord)
-            .select()
-            .single()
-
-          if (insertError) {
-            console.error("Failed to create record in UserChannel:", insertError.message)
-            return
-          }
-          userChannel = insertedRow
         }
-
-        // Set local channel state, including Facebook credentials and fbPageName.
-        setChannels({
-          website: userChannel.website || false,
-          messenger: userChannel.messenger || false,
-          instagram: userChannel.instagram || false,
-          telegram: userChannel.telegram || false,
-          whatsapp: userChannel.whatsapp || false,
-          viber: userChannel.viber || false,
-          discord: userChannel.discord || false,
-          slack: userChannel.slack || false,
-          facebookPageId: userChannel.facebookPageId || "",
-          facebookAccessToken: userChannel.facebookAccessToken || "",
-          fbPageName: userChannel.fbPageName || ""
-        })
-      } catch (err) {
-        console.error("Error loading user channels:", err)
-      } finally {
-        setLoading(false)
-      }
+      )
+      setLoading(false)      
     }
 
     loadUserChannels()
@@ -121,108 +76,70 @@ export default function SetupChannelsPage() {
   // Save changes to DB, and if a Facebook Page ID is provided, update fbPageName for the logged in user.
   async function handleSave() {
     setLoading(true)
-    try {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
-      if (sessionError) {
-        console.error("Session error:", sessionError.message)
-        return
-      }
-      if (!sessionData?.session?.user?.id) {
-        console.log("No user ID found. Redirecting to /auth.")
-        router.push("/auth")
-        return
-      }
-
-      const userId = sessionData.session.user.id
-      console.log("Saving channel settings for userId:", userId, channels)
-
-      // Prepare a new channels object for update, and add fbPageName if available.
-      let updatedChannels = { ...channels }
-
-      // If a Facebook Page ID is provided, fetch the fbPageName from the API.
-      if (channels.facebookPageId) {
-        const response = await fetch("/api/facebook/page-name", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            facebookPageId: channels.facebookPageId,
-            accessToken: channels.facebookAccessToken
-          })
-        })
-        if (response.ok) {
-          const json = await response.json()
-          updatedChannels.fbPageName = json.pageName
-          alert(`Welcome ${json.pageName}`)
-        } else {
-          console.error("Failed to fetch fbPageName")
+    channelsInterface.save(
+      channels,
+      (_: any, updatedChannelInfo: any) => {
+        alert(`Welcome ${updatedChannelInfo.fbPageName}`)
+      },
+      (error: number, msg: any) => {
+        switch(error) {
+          case CONSTANTS.ERROR_AUTH: {
+            console.error("Session error:", msg)
+            router.push("/auth")
+            break;
+          }
+          case CONSTANTS.ERROR_SESSION: {
+            console.error("No active session. Redirecting to /auth.")
+            router.push("/auth")
+            break;
+          }
+          case CONSTANTS.ERROR_SESSION_NO_ID: {
+            console.error("Invalid user ID found. Redirecting to /auth.")
+            router.push("/auth")
+            break;
+          }
+          default: {
+            console.error("Generic error occured:", msg)
+          }
         }
       }
-
-      // Update the UserChannel record for the logged in user.
-      const { data, error } = await supabase
-        .from("UserChannel")
-        .update(updatedChannels)
-        .eq("userId", userId)
-
-      if (error) {
-        console.error("Failed to update channels:", error.message)
-      } else {
-        console.log("Successfully updated channels:", data)
-      }
-    } catch (err) {
-      console.error("Error updating channels:", err)
-    } finally {
-      setLoading(false)
-    }
+    )
+    setLoading(false)
   }
 
   // Call the Facebook sync API to sync conversations.
   async function handleSyncConversations() {
-    try {
-      setLoading(true)
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
-      if (sessionError) {
-        console.error("Session error:", sessionError.message)
-        alert("Session error: " + sessionError.message)
-        return
+    setLoading(true)
+    channelsInterface.syncConversations(
+      channels,
+      (data: any) => {
+        console.log("Sync response:", data)
+        alert("Sync completed: " + JSON.stringify(data))
+      },
+      (error: number, msg: any) => {
+        switch(error) {
+          case CONSTANTS.ERROR_AUTH: {
+            console.error("Session error:", msg)
+            router.push("/auth")
+            break;
+          }
+          case CONSTANTS.ERROR_SESSION: {
+            console.error("No active session. Redirecting to /auth.")
+            router.push("/auth")
+            break;
+          }
+          case CONSTANTS.ERROR_SESSION_NO_ID: {
+            console.error("Invalid user ID found. Redirecting to /auth.")
+            router.push("/auth")
+            break;
+          }
+          default: {
+            console.error("Generic error occured:", msg)
+          }
+        }
       }
-      if (!sessionData?.session?.user?.id) {
-        alert("Not authenticated")
-        router.push("/auth")
-        return
-      }
-      const userId = sessionData.session.user.id
-
-      const response = await fetch("/api/facebook/sync-conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          facebookPageId: channels.facebookPageId,
-          accessToken: channels.facebookAccessToken
-        })
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error("Failed to sync conversations. Status:", response.status, "Response:", errorText)
-        alert("Error syncing conversations: " + response.status + " " + errorText)
-        return
-      }
-
-      const data = await response.json()
-      console.log("Sync response:", data)
-      alert("Sync completed: " + JSON.stringify(data))
-    } catch (error) {
-      console.error("Error syncing conversations:", error)
-      if (error instanceof Error) {
-        alert("Error syncing conversations: " + error.message)
-      } else {
-        alert("Error syncing conversations: " + error)
-      }
-    } finally {
-      setLoading(false)
-    }
+    )
+    setLoading(false)
   }
 
   // Generate a unique link for the logged in user and open it in a new tab.
