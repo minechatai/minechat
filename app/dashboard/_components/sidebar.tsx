@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react";
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -10,7 +11,8 @@ import {
   Settings,
   BarChart2,
   User,
-  LogOut
+  LogOut,
+  ChevronDown 
 } from "lucide-react"
 
 const routes = [
@@ -27,7 +29,17 @@ const routes = [
   {
     label: "Setup",
     icon: Settings,
-    href: "/dashboard/setup"
+    href: "/dashboard/setup",
+    children: [
+      {
+        label: "AI Assistant",
+        href: "/dashboard/chat"
+      },
+      {
+        label: "Business Info",
+        href: "/dashboard/chat"
+      },
+    ]
   },
   {
     label: "CRM",
@@ -40,6 +52,125 @@ const routes = [
     href: "/dashboard/accounts"
   }
 ]
+
+function NormalLink(pathname: string, linkInfo: any) {
+
+
+  let iconToUse = <div></div>
+  if (linkInfo.icon != null) {
+    iconToUse = <linkInfo.icon
+      className={cn(
+        "size-5",
+        pathname === linkInfo.href
+          ? "text-[#87174F]"
+          : "text-[#A8AEBF]"
+      )}
+    />
+  }
+
+  return (
+    <Link
+      key={linkInfo.href}
+      href={linkInfo.href}
+      className={cn(
+        "flex h-11 items-center justify-between rounded-lg px-4 transition-colors",
+        pathname === linkInfo.href ? "bg-[#FCF2F4]" : "hover:bg-[#F5F6FA]"
+      )}
+    >
+      <div className="flex items-center gap-3">
+        {iconToUse}
+        <span
+          className={cn(
+            "text-base font-medium leading-6",
+            pathname === linkInfo.href
+              ? "bg-gradient-to-r from-[#87174F] via-[#AB2856] to-[#B73A4E] bg-clip-text text-transparent"
+              : "text-[#A8AEBF]"
+          )}
+        >
+          {linkInfo.label}
+        </span>
+      </div>
+    </Link>
+  )
+}
+
+function MyAccordion(pathname: string, linkInfo: any) {
+  const [open, setOpen] = useState(true);
+  const [selected, setSelected] = useState("AI Assistant");
+
+  return (
+    <div
+      className={cn(
+        "flex flex-col justify-between rounded-lg px-4 transition-colors",
+        pathname === linkInfo.href ? "bg-[#FCF2F4]" : "hover:bg-[#F5F6FA]"
+      )}>
+      {/* Setup Header */}
+      <div
+        className={cn(
+          "w-full"
+        )}
+        onClick={() => setOpen(!open)}
+      >
+        <div className="flex items-center gap-3">
+          <linkInfo.icon
+            className={cn(
+              "size-5",
+              pathname.indexOf(linkInfo.href) > -1
+                ? "text-[#87174F]"
+                : "text-[#A8AEBF]"
+            )}
+          />
+          <span
+            className={cn(
+              "text-base font-medium leading-6",
+              pathname.indexOf(linkInfo.href) > -1
+                ? "bg-gradient-to-r from-[#87174F] via-[#AB2856] to-[#B73A4E] bg-clip-text text-transparent"
+                : "text-[#A8AEBF]"
+            )}
+          >
+            {linkInfo.label}
+          </span>
+          <ChevronDown
+            className={cn("h-4 w-4 transition-transform", open ? "rotate-180" : "")}
+          />
+        </div>
+      </div>
+
+      {/* Menu Items */}
+      {open && (
+        <div className="ml-8 mt-2">
+          {["AI Assistant", "Business Information", "Channels"].map((item) => (
+            <div
+              key={item}
+              onClick={() => setSelected(item)}
+              className={cn(
+                "flex cursor-pointer hover:text-black text-sm",
+                selected === item
+                  ? "text-black font-medium"
+                  : "text-gray-400"
+              )}
+            >
+              <div
+                className={cn(
+                  "w-[1px] h-8 mr-4",
+                  pathname.indexOf(linkInfo.href) > -1
+                    ? "bg-gradient-to-r from-[#87174F] via-[#AB2856] to-[#B73A4E]"
+                    : "bg-[#A8AEBF]"
+                )}
+              ></div>
+              <div
+                className={cn(
+                  "mt-1", "mb-1"
+                )}>
+                {item}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export function Sidebar() {
   const pathname = usePathname()
@@ -59,37 +190,11 @@ export function Sidebar() {
       {/* Navigation */}
       <div className="flex flex-col gap-[572px] p-4">
         <div className="flex flex-col gap-2">
-          {routes.map(route => (
-            <Link
-              key={route.href}
-              href={route.href}
-              className={cn(
-                "flex h-11 items-center justify-between rounded-lg px-4 transition-colors",
-                pathname === route.href ? "bg-[#FCF2F4]" : "hover:bg-[#F5F6FA]"
-              )}
-            >
-              <div className="flex items-center gap-3">
-                <route.icon
-                  className={cn(
-                    "size-5",
-                    pathname === route.href
-                      ? "text-[#87174F]"
-                      : "text-[#A8AEBF]"
-                  )}
-                />
-                <span
-                  className={cn(
-                    "text-base font-medium leading-6",
-                    pathname === route.href
-                      ? "bg-gradient-to-r from-[#87174F] via-[#AB2856] to-[#B73A4E] bg-clip-text text-transparent"
-                      : "text-[#A8AEBF]"
-                  )}
-                >
-                  {route.label}
-                </span>
-              </div>
-            </Link>
-          ))}
+          {NormalLink(pathname, routes[0])}
+          {NormalLink(pathname, routes[1])}
+          {MyAccordion(pathname, routes[2])}
+          {NormalLink(pathname, routes[3])}
+          {NormalLink(pathname, routes[4])}
         </div>
 
         {/* Logout Button */}

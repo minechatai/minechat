@@ -19,10 +19,14 @@ import {
   TooltipContent,
   TooltipTrigger
 } from "@/components/ui/tooltip"
+import { Accordion } from "../ui/accordion"
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {}
 
 export function Sidebar({ className }: SidebarProps) {
+
+  return <div></div>
+/*
   const pathname = usePathname()
   const { isCollapsed, toggleCollapsed } = useSidebar()
 
@@ -78,23 +82,27 @@ export function Sidebar({ className }: SidebarProps) {
                 {routes.map(route => (
                   <Tooltip key={route.href} delayDuration={0}>
                     <TooltipTrigger asChild>
-                      <Button
-                        variant={
-                          pathname === route.href ? "secondary" : "ghost"
-                        }
-                        className={cn(
-                          "w-full justify-start",
-                          isCollapsed && "justify-center px-2"
-                        )}
-                        asChild
-                      >
-                        <Link href={route.href}>
-                          <route.icon
-                            className={cn("size-4", !isCollapsed && "mr-2")}
-                          />
-                          {!isCollapsed && route.label}
-                        </Link>
-                      </Button>
+                    <Accordion type="single" collapsible className="w-full">
+                      <AccordionItem value="item-1">
+                        <AccordionTrigger>AI Assistant</AccordionTrigger>
+                        <AccordionContent>
+                          Yes. It adheres to the WAI-ARIA design pattern.
+                        </AccordionContent>
+                      </AccordionItem>
+                      <AccordionItem value="item-2">
+                        <AccordionTrigger>Business Information</AccordionTrigger>
+                        <AccordionContent>
+                          Yes. It comes with default styles that matches the other
+                          omponents&apos; aesthetic.
+                        </AccordionContent>
+                      </AccordionItem>
+                      <AccordionItem value="item-3">
+                        <AccordionTrigger>Channels</AccordionTrigger>
+                        <AccordionContent>
+                          Yes. It's animated by default, but you can disable it if you prefer.
+                        </AccordionContent>
+                      </AccordionItem>                      
+                    </Accordion>
                     </TooltipTrigger>
                     {isCollapsed && (
                       <TooltipContent side="right">
@@ -122,4 +130,5 @@ export function Sidebar({ className }: SidebarProps) {
       </Button>
     </div>
   )
+    */
 }
