@@ -1,5 +1,5 @@
 import { CONSTANTS } from "@/lib/constants"
-import { supabase } from "@/lib/supabase-client"
+import { supabase } from "./supabase-client"
 
 export class SessionHandler {
 

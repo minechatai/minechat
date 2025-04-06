@@ -1,5 +1,5 @@
-import { CONSTANTS } from "@/lib/constants"
-import { supabase } from "@/lib/supabase-client"
+import { CONSTANTS } from "./constants"
+import { supabase } from "./supabase-client"
 
 /**
  * Interface for BusinessInfo.
