@@ -1,134 +1,198 @@
 "use client"
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { usePathname } from "next/navigation"
+import { useState } from "react";
+import Image from "next/image"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { cn } from "@/lib/utils"
 import {
-  Home,
+  LayoutDashboard,
+  MessageCircle,
   Settings,
-  PanelLeftClose,
-  PanelLeft,
-  MessageSquare,
-  FileText,
-  Cog
+  BarChart2,
+  User,
+  LogOut,
+  ChevronDown 
 } from "lucide-react"
-import { useSidebar } from "@/components/providers/sidebar-provider"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger
-} from "@/components/ui/tooltip"
-import { Accordion } from "../ui/accordion"
 
-interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {}
+const routes = [
+  {
+    label: "Dashboard",
+    icon: LayoutDashboard,
+    href: "/dashboard"
+  },
+  {
+    label: "Chat",
+    icon: MessageCircle,
+    href: "/dashboard/chat"
+  },
+  {
+    label: "Setup",
+    icon: Settings,
+    href: "/dashboard/setup",
+    children: [
+      {
+        label: "AI Assistant",
+        href: "/dashboard/setup/aiassistant"
+      },
+      {
+        label: "Channels",
+        href: "/dashboard/setup/channels"
+      },
+    ]
+  },
+  {
+    label: "CRM",
+    icon: BarChart2,
+    href: "/dashboard/crm"
+  },
+  {
+    label: "Accounts",
+    icon: User,
+    href: "/dashboard/accounts"
+  }
+]
 
-export function Sidebar({ className }: SidebarProps) {
+function NormalLink(pathname: string, linkInfo: any) {
 
-  return <div></div>
-/*
-  const pathname = usePathname()
-  const { isCollapsed, toggleCollapsed } = useSidebar()
+  let iconToUse = <div
+    className={cn(
+      "w-[1px] h-11 mr-4",
+      pathname.indexOf(linkInfo.href) > -1
+        ? "bg-gradient-to-r from-[#87174F] via-[#AB2856] to-[#B73A4E]"
+        : "bg-[#A8AEBF]"
+    )}
+  ></div>
 
-  const routes = [
-    {
-      label: "Home",
-      icon: Home,
-      href: "/dashboard"
-    },
-    {
-      label: "Chats",
-      icon: MessageSquare,
-      href: "/dashboard/chats"
-    },
-    {
-      label: "Reports",
-      icon: FileText,
-      href: "/dashboard/reports"
-    },
-    {
-      label: "Setup",
-      icon: Cog,
-      href: "/dashboard/setup"
-    },
-    {
-      label: "Settings",
-      icon: Settings,
-      href: "/dashboard/settings"
-    }
-  ]
+  if (linkInfo.icon != null) {
+    iconToUse = <linkInfo.icon
+      className={cn(
+        "size-5",
+        pathname === linkInfo.href
+          ? "text-[#87174F]"
+          : "text-[#A8AEBF]"
+      )}
+    />
+  }
 
   return (
-    <div className={cn("relative", className)}>
+    <Link
+      key={linkInfo.href}
+      href={linkInfo.href}
+      className={cn(
+        "flex h-11 items-center justify-between rounded-lg px-4 transition-colors",
+        pathname === linkInfo.href ? "bg-[#FCF2F4]" : "hover:bg-[#F5F6FA]"
+      )}
+    >
+      <div className="flex items-center gap-3">
+        {iconToUse}
+        <span
+          className={cn(
+            "text-base font-medium leading-6",
+            pathname === linkInfo.href
+              ? "bg-gradient-to-r from-[#87174F] via-[#AB2856] to-[#B73A4E] bg-clip-text text-transparent"
+              : "text-[#A8AEBF]"
+          )}
+        >
+          {linkInfo.label}
+        </span>
+      </div>
+    </Link>
+  )
+}
+
+function MyAccordion(pathname: string, linkInfo: any) {
+  const [open, setOpen] = useState(true);
+  const [selected, setSelected] = useState("AI Assistant");
+
+  return (
+    <div
+      className={cn(
+        "flex flex-col justify-between rounded-lg px-4 transition-colors"
+      )}>
+      {/* Setup Header */}
       <div
         className={cn(
-          "h-full border-r pb-12",
-          isCollapsed ? "w-16" : "w-72",
-          "transition-all duration-300"
+          "w-full"
         )}
+        onClick={() => setOpen(!open)}
       >
-        <div className="space-y-4 py-4">
-          <div className="px-3 py-2">
-            <div className="space-y-1">
-              <h2
-                className={cn(
-                  "mb-2 px-4 text-xl font-semibold tracking-tight",
-                  isCollapsed && "hidden"
-                )}
-              >
-                Dashboard
-              </h2>
-              <div className="flex flex-col gap-1">
-                {routes.map(route => (
-                  <Tooltip key={route.href} delayDuration={0}>
-                    <TooltipTrigger asChild>
-                    <Accordion type="single" collapsible className="w-full">
-                      <AccordionItem value="item-1">
-                        <AccordionTrigger>AI Assistant</AccordionTrigger>
-                        <AccordionContent>
-                          Yes. It adheres to the WAI-ARIA design pattern.
-                        </AccordionContent>
-                      </AccordionItem>
-                      <AccordionItem value="item-2">
-                        <AccordionTrigger>Business Information</AccordionTrigger>
-                        <AccordionContent>
-                          Yes. It comes with default styles that matches the other
-                          omponents&apos; aesthetic.
-                        </AccordionContent>
-                      </AccordionItem>
-                      <AccordionItem value="item-3">
-                        <AccordionTrigger>Channels</AccordionTrigger>
-                        <AccordionContent>
-                          Yes. It's animated by default, but you can disable it if you prefer.
-                        </AccordionContent>
-                      </AccordionItem>                      
-                    </Accordion>
-                    </TooltipTrigger>
-                    {isCollapsed && (
-                      <TooltipContent side="right">
-                        {route.label}
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
-                ))}
-              </div>
-            </div>
-          </div>
+        <div className="flex items-center gap-3">
+          <linkInfo.icon
+            className={cn(
+              "size-5",
+              pathname.indexOf(linkInfo.href) > -1
+                ? "text-[#87174F]"
+                : "text-[#A8AEBF]"
+            )}
+          />
+          <span
+            className={cn(
+              "text-base font-medium leading-6",
+              pathname.indexOf(linkInfo.href) > -1
+                ? "bg-gradient-to-r from-[#87174F] via-[#AB2856] to-[#B73A4E] bg-clip-text text-transparent"
+                : "text-[#A8AEBF]"
+            )}
+          >
+            {linkInfo.label}
+          </span>
+          <ChevronDown
+            className={cn("h-4 w-4 transition-transform", open ? "rotate-180" : "")}
+          />
         </div>
       </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={toggleCollapsed}
-        className="absolute -right-4 top-2 size-8 rounded-full"
-      >
-        {isCollapsed ? (
-          <PanelLeft className="size-4" />
-        ) : (
-          <PanelLeftClose className="size-4" />
-        )}
-      </Button>
+
+      {/* Menu Items */}
+      {open && (
+        <div className="ml-8 mt-2">
+          {linkInfo.children == null ? 
+            <div></div> : 
+            linkInfo.children.map((subLinkInfo: any) => NormalLink(pathname, subLinkInfo))
+          }
+        </div>
+      )}
     </div>
   )
-    */
+}
+
+export function Sidebar() {
+  const pathname = usePathname()
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Header */}
+      <div className="flex h-[72px] items-center border-b border-[#E9EEF1] px-4">
+        <Image
+          src="/new-minechat-logo-transparent.png"
+          alt="Minechat.ai"
+          width={165}
+          height={29}
+        />
+      </div>
+
+      {/* Navigation */}
+      <div className="flex flex-col gap-[572px] p-4">
+        <div className="flex flex-col gap-2">
+          {NormalLink(pathname, routes[0])}
+          {NormalLink(pathname, routes[1])}
+          {MyAccordion(pathname, routes[2])}
+          {NormalLink(pathname, routes[3])}
+          {NormalLink(pathname, routes[4])}
+        </div>
+
+        {/* Logout Button */}
+        <Link
+          href="/logout"
+          className="flex h-12 items-center justify-between rounded-lg border border-[#EBEDF0] px-4"
+        >
+          <div className="flex items-center gap-3">
+            <LogOut className="size-5 text-[#0A0A0A]" />
+            <span className="text-base font-medium leading-6 text-[#0A0A0A]">
+              Logout
+            </span>
+          </div>
+        </Link>
+      </div>
+    </div>
+  )
 }
