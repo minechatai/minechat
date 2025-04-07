@@ -1,7 +1,7 @@
 "use server"
 
-import { Sidebar } from "@/components/dashboard/sidebar"
-import { Header } from "@/components/dashboard/header"
+import { Sidebar } from "@/app/dashboard/_components/sidebar"
+import { Header } from "@/app/dashboard/_components/header"
 
 export default async function DashboardLayout({
   children
