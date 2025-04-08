@@ -8,9 +8,9 @@ export default function ChatsPage() {
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null)
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] gap-4 p-4">
+    <div className="flex p-4 h-[calc(100vh-72px)]">
       <div className="w-80 rounded-lg border">
-        <div className="border-b p-4">
+        <div className="border-b p-4 h-[3rem]">
           <h2 className="font-semibold">Messages</h2>
         </div>
         <ChatList

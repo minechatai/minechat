@@ -19,6 +19,13 @@ interface DBConversation {
   updatedAt: string
 }
 
+export interface Chat {
+  id: string
+  name: string
+  lastMessage: string
+  timestamp: string
+}
+
 export interface DBConversationWithLatest extends DBConversation {
   aiMode?: boolean
   recipientPageScopeId?: string | null
@@ -26,7 +33,7 @@ export interface DBConversationWithLatest extends DBConversation {
   messages?: DBMessage[]
 }
 
-export class Chat {
+export class ChatHandler {
 
     async fetchUserChannel(onSuccess: any, onError: any) {
         const { data: sessionData } = await supabase.auth.getSession()
@@ -127,6 +134,8 @@ export class Chat {
           .order("createdAt", { ascending: false })
           .range(from, to)
         
+        console.log("fetchconvo", data, error)
+
         if (error) {
           onError(CONSTANTS.ERROR_GENERIC)
           return
@@ -175,5 +184,107 @@ export class Chat {
       return () => {
         supabase.removeChannel(subscription)
       }
+    }
+
+    async getChatList(onSuccess: any, onError: any) {
+      
+      const getFbName = async (userId: string) => {
+        const { data, error } = await supabase
+          .from("UserChannel")
+          .select("fbPageName")
+          .eq("userId", userId)
+          .maybeSingle()
+
+          console.log("getFbName", data, error)
+        
+          if (error) {
+              return null
+          }
+          
+          return data.fbPageName
+      }
+
+      const getConversations = async (userId: string, from: Date, to: Date) => {
+        const { data, error } = await supabase
+          .from("Conversation")
+          .select("id, userId, createdAt, updatedAt, aiMode, recipientPageScopeId")
+          .eq("userId", userId)
+          .order("createdAt", { ascending: false })
+          .range(from, to)
+      
+        console.log("getConversations", data, error)
+        
+        if (error) {
+          return null
+        }
+      
+        return data
+      }
+
+      const convertToChatInfo = async (conv: any, filter: string): Promise<Chat> => {
+        
+        const { data, error } = await supabase
+          .from("ConversationMessage")
+          .select("sender, content, date")
+          .eq("conversationId", conv.id)
+          .neq("sender", filter)
+          .order("date", { ascending: false })
+          .limit(1)
+
+        console.log("convertToChatInfo", data, error)
+
+        if (error != null || data.length < 1) {
+          return {
+            id: "",
+            name: "",
+            lastMessage: "",
+            timestamp: ""
+          }
+        }
+
+        return {
+          id: conv.id,
+          name: data[0].sender,
+          lastMessage: data[0].content,
+          timestamp: data[0].date
+        }
+      }
+
+      const getSession = async () => {
+
+        const { data, error } = await supabase.auth.getSession()
+        
+        console.log("getConversations", data, error)
+
+        if (data == null || data.session == null) {
+          return null
+        }
+
+        return data
+      }
+
+      const sessionData = await getSession()
+      if (sessionData == null) {
+        onError(CONSTANTS.ERROR_SESSION, "no session data retrieved")
+      }
+      
+      const userId = sessionData.session.user.id
+      let fbPageName = await getFbName(userId)
+      let fromRange = new Date(0)
+      let toRange = new Date()
+      toRange.setDate(toRange.getDate() + 2)
+
+      let conversations = await getConversations(userId, fromRange, toRange)
+
+      if (conversations == null) {
+        onError(CONSTANTS.ERROR_GENERIC, "no conversation retrieved")
+      }
+
+      let chatInfo = await Promise.all(
+        conversations.map(
+          (conversationData: any) => convertToChatInfo(conversationData, fbPageName)
+        )
+      )
+      onSuccess(chatInfo.filter((element: any) => element.id != ''))
     }
 }
