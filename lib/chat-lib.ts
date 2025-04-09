@@ -1,5 +1,5 @@
 import { CONSTANTS } from "./constants"
-import { supabase } from "./supabase-client"
+
 
 export interface DBMessage {
   id: string
@@ -174,8 +174,106 @@ export class ChatHandler {
       onSuccess(messages)
     }
 
-    async sendMessage(message: string, onSendMessage: any) {
+    async sendMessage(conversationId: string, newMessage: string, onSuccess: any, onError: any) {
 
+      const getFacebookToken = async () => {
+        
+        const user = this.supabaseInterface.getUser()
+        const userId = user.id
+        console.log("Current User ID:", userId)
+
+        let supabase = this.supabaseInterface.getClient()
+
+        const { data, error } = await supabase
+          .from("UserChannel")
+          .select("facebookAccessToken")
+          .eq("userId", userId)
+          .maybeSingle()
+
+        console.log(data, error)
+
+        if (error) {
+            return null
+        }
+
+        return data.facebookAccessToken
+      }
+
+      const getFacebookPageScopeId = async (id: string) => {
+        
+        let supabase = this.supabaseInterface.getClient()
+
+        const { data, error } = await supabase
+          .from("Conversation")
+          .select("recipientPageScopeId")
+          .eq("id", id)
+          .maybeSingle()
+
+        console.log(data, error)
+
+        if (error) {
+            return null
+        }
+
+        return data.recipientPageScopeId
+      }
+
+      try {
+        // Prepare a timestamp for the inserted record
+        const now = new Date().toISOString()
+        const fbAccessToken = await getFacebookToken()
+        const fbPageScopeId = await getFacebookPageScopeId(conversationId)
+  
+        const supabase = this.supabaseInterface.getClient()
+
+        // 1. Insert the message into your ConversationMessage table using Supabase,
+        // supplying an id manually using uuid() along with the createdAt, updatedAt, and date fields.
+        const { error: insertError } = await supabase
+          .from("ConversationMessage")
+          .insert({
+            id: crypto.randomUUID(), // Provide a new uuid for the id column
+            conversationId: conversationId,
+            content: newMessage.trim(),
+            sender: "Minechat AI",
+            source: "Facebook",
+            date: now,
+            createdAt: now,
+            updatedAt: now
+          })
+  
+        if (insertError) {
+          onError(CONSTANTS.ERROR_GENERIC, insertError)
+          return
+        }
+  
+        let facebookParams = {
+          conversationId: conversationId,
+          message: newMessage.trim(),
+          recipientPageScopeId: fbPageScopeId,
+          facebookAccessToken: fbAccessToken
+        }
+
+        console.log("facebookparams", facebookParams)
+
+        // 2. Call the API route to send the message to the Facebook user
+        const response = await fetch("/api/facebook/send-message", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(facebookParams)
+        })
+  
+        const result = await response.json()
+  
+        if (!result.success) {
+          onError(CONSTANTS.ERROR_GENERIC, result.error)
+        }
+        else {
+          onSuccess()
+        }
+      } 
+      catch (error) {
+        onError(CONSTANTS.ERROR_GENERIC, error)
+      }
     }
 
     registerMessagesTableListener(onRecordInserted: any) {

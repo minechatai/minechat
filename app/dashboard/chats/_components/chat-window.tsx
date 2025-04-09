@@ -94,9 +94,8 @@ export function ChatWindow({ chatId }: any) {
     if (!newMessage.trim()) return
     setSending(true)
 
-
     chatInterface.setSupabaseInterface(supabase)
-    chatInterface.sendMessage(newMessage, updateMessages)
+    chatInterface.sendMessage(chatId, newMessage, updateMessages, () => {})
 
     setNewMessage("")
     setSending(false)
