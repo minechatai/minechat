@@ -35,13 +35,20 @@ export interface DBConversationWithLatest extends DBConversation {
 
 export class ChatHandler {
 
+    supabaseInterface: any
+
+    setSupabaseInterface(obj: any) {
+        this.supabaseInterface = obj
+    }
+
     async fetchUserChannel(onSuccess: any, onError: any) {
-        const { data: sessionData } = await supabase.auth.getSession()
-        if (!sessionData?.session) {
-            onError(CONSTANTS.ERROR_AUTH)
-            return
-        }
-        const userId = sessionData.session.user.id
+
+        const user = this.supabaseInterface.getUser()
+        const userId = user.id
+        console.log("Current User ID:", userId)
+
+        let supabase = this.supabaseInterface.getClient()
+
         const { data, error } = await supabase
         .from("UserChannel")
         .select("fbPageName")
@@ -59,6 +66,12 @@ export class ChatHandler {
     }
 
     async fetchConversations(from: number, to: number, thisUserId: string, onSuccess: any, onError: any) {
+
+        const user = this.supabaseInterface.getUser()
+        const userId = user.id
+        console.log("Current User ID:", userId)
+
+        let supabase = this.supabaseInterface.getClient()
 
         const processConversation = async (conv: DBConversationWithLatest) => {
             
@@ -120,13 +133,6 @@ export class ChatHandler {
             return { ...conv, latestMessage }
         }
 
-        const { data: sessionData } = await supabase.auth.getSession()
-        if (!sessionData?.session) {
-          onError(CONSTANTS.ERROR_AUTH)
-          return
-        }
-
-        const userId = sessionData.session.user.id
         const { data, error } = await supabase
           .from("Conversation")
           .select("id, userId, createdAt, updatedAt, aiMode, recipientPageScopeId")
@@ -146,12 +152,14 @@ export class ChatHandler {
         }
     }
 
-    async getConversationMessages(conversation: DBConversationWithLatest, onSuccess: any, onError: any) {
+    async getConversationMessages(conversationId: string, onSuccess: any, onError: any) {
       
+      let supabase = this.supabaseInterface.getClient()
+
       const { data, error } = await supabase
         .from("ConversationMessage")
         .select("*")
-        .eq("conversationId", conversation.id)
+        .eq("conversationId", conversationId)
         .order("date", { ascending: false })
         .limit(100)
       
@@ -162,12 +170,18 @@ export class ChatHandler {
       
       // Reverse the messages to show them in chronological order (oldest first)
       const messages = data ? data.reverse() : [];
-      const conversationWithMessages = { ...conversation, messages }
 
-      onSuccess(conversationWithMessages)
+      onSuccess(messages)
     }
 
-    registerConversationTableListener(onRecordInserted: any) {
+    async sendMessage(message: string, onSendMessage: any) {
+
+    }
+
+    registerMessagesTableListener(onRecordInserted: any) {
+      
+        let supabase = this.supabaseInterface.getClient()
+
         const subscription = supabase
         .channel('conversation-messages-all')
         .on(
@@ -185,9 +199,37 @@ export class ChatHandler {
         supabase.removeChannel(subscription)
       }
     }
+    
+    registerConversationTableListener(onRecordInserted: any) {
+      
+      let supabase = this.supabaseInterface.getClient()
+
+      const subscription = supabase
+      .channel('conversation-header')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'Conversation'
+        },
+        onRecordInserted
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(subscription)
+    }
+  }
 
     async getChatList(onSuccess: any, onError: any) {
       
+      const user = this.supabaseInterface.getUser()
+      const userId = user.id
+      console.log("Current User ID:", userId)
+
+      let supabase = this.supabaseInterface.getClient()
+
       const getFbName = async (userId: string) => {
         const { data, error } = await supabase
           .from("UserChannel")
@@ -250,25 +292,6 @@ export class ChatHandler {
         }
       }
 
-      const getSession = async () => {
-
-        const { data, error } = await supabase.auth.getSession()
-        
-        console.log("getConversations", data, error)
-
-        if (data == null || data.session == null) {
-          return null
-        }
-
-        return data
-      }
-
-      const sessionData = await getSession()
-      if (sessionData == null) {
-        onError(CONSTANTS.ERROR_SESSION, "no session data retrieved")
-      }
-      
-      const userId = sessionData.session.user.id
       let fbPageName = await getFbName(userId)
       let fromRange = new Date(0)
       let toRange = new Date()

@@ -1,28 +1,19 @@
 import { CONSTANTS } from "./constants"
-import { supabase } from "./supabase-client"
 
 export class Channels {
     
+    supabaseInterface: any
+
+    setSupabaseInterface(obj: any) {
+        this.supabaseInterface = obj
+    }
+
     async loadUserChannels(onSuccess: any, onError: any) {
         try {
-            // Check session on the client side.
-            const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
-            if (sessionError) {
-                onError(CONSTANTS.ERROR_SESSION, sessionError.message)
-                return
-            }
-            if (!sessionData?.session) {
-                onError(CONSTANTS.ERROR_AUTH)
-                return
-            }
-        
-            // Get user ID.
-            const user = sessionData.session.user
-            if (!user?.id) {
-                onError(CONSTANTS.ERROR_SESSION_NO_ID)
-                return
-            }
-        
+
+            let user = this.supabaseInterface.getUser()
+            let supabase = this.supabaseInterface.getClient()
+
             // Fetch the UserChannel row.
             const { data: existingRow, error: fetchError } = await supabase
                 .from("UserChannel")
@@ -50,7 +41,7 @@ export class Channels {
                     .from("UserChannel")
                     .insert(newRecord)
                     .select()
-                    .single()
+                    .limit(1)
         
                 if (insertError) {
                     onError(CONSTANTS.ERROR_GENERIC, insertError.message)
@@ -84,18 +75,12 @@ export class Channels {
 
     async save(channels: any, onSuccess: any, onError: any) {
         try {
-            const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
-            if (sessionError) {
-                onError(CONSTANTS.ERROR_SESSION, sessionError.message)
-                return
-            }
-            if (!sessionData?.session?.user?.id) {
-                onError(CONSTANTS.ERROR_SESSION_NO_ID)
-                return
-            }
-
-            const userId = sessionData.session.user.id
+            
+            let user = this.supabaseInterface.getUser()
+            const userId = user.id
             console.log("Saving channel settings for userId:", userId, channels)
+
+            let supabase = this.supabaseInterface.getClient()
 
             // Prepare a new channels object for update, and add fbPageName if available.
             let updatedChannels = { ...channels }
@@ -137,16 +122,8 @@ export class Channels {
     // Call the Facebook sync API to sync conversations.
     async syncConversations(channels: any, onSuccess: any, onError: any) {
         try {
-            const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
-            if (sessionError) {
-                onError(CONSTANTS.ERROR_SESSION, sessionError.message)
-                return
-            }
-            if (!sessionData?.session?.user?.id) {
-                onError(CONSTANTS.ERROR_SESSION_NO_ID)
-                return
-            }
-            const userId = sessionData.session.user.id
+            let user = await this.supabaseInterface.getUser()
+            const userId = user.id
 
             const response = await fetch("/api/facebook/sync-conversations", {
                 method: "POST",

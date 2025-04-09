@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Chat, ChatHandler } from "@/lib/chat-lib"
 import { CONSTANTS } from "@/lib/constants"
+import { useSupabase } from "@/lib/supabase-client";
 
 interface ChatListProps {
   onChatSelect: (chatId: string) => void
@@ -14,41 +15,22 @@ interface ChatListProps {
 
 let chatInterface = new ChatHandler()
 
-async function getChatList(onSuccess: any, onError: any) {
-  setTimeout(() => {
-    const DUMMY_CHATS: Chat[] = [
-      {
-        id: "1",
-        name: "John Doe",
-        lastMessage: "Hey, how are you?",
-        timestamp: "2m ago"
-      },
-      {
-        id: "2",
-        name: "Jane Smith",
-        lastMessage: "The project is looking great!",
-        timestamp: "1h ago"
-      },
-      {
-        id: "3",
-        name: "Mike Johnson",
-        lastMessage: "Can we schedule a meeting?",
-        timestamp: "2h ago"
-      }
-    ]
-    
-    onSuccess(DUMMY_CHATS)
-  }, 3000)
-}
-
 export function ChatList({ onChatSelect, selectedChatId }: ChatListProps) {
-
+  const supabase = useSupabase();
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [chatMessages, setChatMessages] = useState([])
 
-  useEffect(() => {
+  const updateConversationList = () => {
+    
     setLoading(true)
+    
+    console.log("updateMessages")
+    if (!supabase.isReady()) return
+
+    console.log("supabase.isReady()", supabase.isReady())
+
+    chatInterface.setSupabaseInterface(supabase)
     chatInterface.getChatList(
       (list: any) => {
         console.log("ChatList", list)
@@ -80,7 +62,11 @@ export function ChatList({ onChatSelect, selectedChatId }: ChatListProps) {
         setLoading(false)
       }
     )
-  }, [router])
+
+    return chatInterface.registerConversationTableListener(updateConversationList)
+  }
+
+  useEffect(updateConversationList, [router, supabase.isReady()])
 
   if (loading) {
     return (
@@ -103,8 +89,8 @@ export function ChatList({ onChatSelect, selectedChatId }: ChatListProps) {
           )}
         >
           <div className="flex items-center justify-between">
-            <span className="font-medium">{chat.name}</span>
-            <span className="text-muted-foreground text-xs">
+            <span className="font-medium text-left">{chat.name}</span>
+            <span className="text-muted-foreground text-xs text-right">
               {chat.timestamp}
             </span>
           </div>

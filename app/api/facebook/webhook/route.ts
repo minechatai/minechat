@@ -145,8 +145,9 @@ export async function POST(request: Request) {
       const { data, error } = await supabase
         .from('Conversation')
         .insert({
-          userId: fbThreadId,              // Storing Facebook thread ID
+          userId: userChannel.userId,
           recipientPageScopeId: senderPSID,  // Sender's PSID
+          updatedAt: new Date(),
         })
         .select()
         .single();
@@ -202,7 +203,7 @@ export async function POST(request: Request) {
       throw new Error(`Error fetching AIAssistantSetup: ${assistantSetupError?.message || 'No record found'}`);
     }
     console.log('Assistant Setup:', assistantSetup);
-
+/*
     const { data: businessInfo, error: businessInfoError } = await supabase
       .from('BusinessInfo')
       .select('*')
@@ -212,7 +213,7 @@ export async function POST(request: Request) {
       throw new Error(`Error fetching BusinessInfo: ${businessInfoError?.message || 'No record found'}`);
     }
     console.log('Business Info:', businessInfo);
-
+*/
     // Retrieve the last 50 conversation messages, sorted by date (latest first, then reverse order)
     console.log(`Fetching last 50 messages for conversation ID: ${conversationRecord.id}`);
     const { data: conversationHistory, error: historyError } = await supabase
@@ -242,9 +243,8 @@ export async function POST(request: Request) {
 
     // Prepend a system message containing the assistant configuration and business info
     const systemContent = `Assistant Name: ${assistantSetup.assistantName}\n` +
-                            `Persona: ${assistantSetup.persona}\n` +
-                            `Instructions: ${assistantSetup.instructions}\n` +
-                            `Business Info: ${businessInfo.content}`;
+                            `Introduction Message: ${assistantSetup.introMessage}\n` +
+                            `Business Info: ${assistantSetup.shortDescription}`;
     promptMessages.unshift({ role: 'system', content: systemContent });
     console.log('Constructed promptMessages (with system message):', promptMessages);
 

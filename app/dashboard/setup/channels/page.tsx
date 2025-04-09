@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { Channels } from "@/lib/channels-lib"
 import { CONSTANTS } from "@/lib/constants"
+import { useSupabase } from "@/lib/supabase-client";
 
 let channelsInterface = new Channels()
 
@@ -25,8 +26,8 @@ const tabInfo = [
 ];
 
 export default function ChannelSetup() {
+  const supabase = useSupabase();
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
   const [channels, setChannels] = useState({
     website: false,
     messenger: false,
@@ -39,11 +40,13 @@ export default function ChannelSetup() {
     facebookPageId: "",
     facebookAccessToken: "",
     fbPageName: ""
-  })  
+  })
 
   // On mount, fetch existing user channel row or create a new one.
   useEffect(() => {
+
     async function loadUserChannels() {
+      console.log("loading user channels")
       channelsInterface.loadUserChannels(
         (channelsInfo: any) => {
           setChannels(channelsInfo.data)
@@ -71,15 +74,17 @@ export default function ChannelSetup() {
           }
         }
       )
-      setLoading(false)      
     }
 
-    loadUserChannels()
-  }, [router])
+    if (supabase.isReady()) {
+      channelsInterface.setSupabaseInterface(supabase)
+      loadUserChannels()
+    }
+
+  }, [router, supabase.isReady()])
 
   // Save changes to DB, and if a Facebook Page ID is provided, update fbPageName for the logged in user.
   function handleSave() {
-    setLoading(true)
     channelsInterface.save(
       channels,
       (_: any, updatedChannelInfo: any) => {
@@ -89,17 +94,17 @@ export default function ChannelSetup() {
         switch(error) {
           case CONSTANTS.ERROR_AUTH: {
             console.error("Session error:", msg)
-            router.push("/auth")
+            //router.push("/auth")
             break;
           }
           case CONSTANTS.ERROR_SESSION: {
             console.error("No active session. Redirecting to /auth.")
-            router.push("/auth")
+            //router.push("/auth")
             break;
           }
           case CONSTANTS.ERROR_SESSION_NO_ID: {
             console.error("Invalid user ID found. Redirecting to /auth.")
-            router.push("/auth")
+            //router.push("/auth")
             break;
           }
           default: {
@@ -108,7 +113,6 @@ export default function ChannelSetup() {
         }
       }
     )
-    setLoading(false)
   }
 
   return (
