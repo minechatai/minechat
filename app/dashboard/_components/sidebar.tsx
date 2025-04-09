@@ -24,7 +24,7 @@ const routes = [
   {
     label: "Chat",
     icon: MessageCircle,
-    href: "/dashboard/chat"
+    href: "/dashboard/chats"
   },
   {
     label: "Setup",

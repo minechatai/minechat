@@ -32,10 +32,14 @@ async function main() {
     data: {
       userId,
       assistantName: "Chat Buddy",
-      persona:
+      introMessage:
+        "Hi!",
+      shortDescription:
         "A helpful virtual assistant focusing on guiding leads toward booking demos or making purchases.",
-      instructions:
+      guidelines:
         "Always respond professionally and concisely. Use a friendly, polite tone. Offer solutions or escalate to a human agent if needed.",
+      responseLength:
+        "short"
     },
   })
   // ---------------------------------------------------------------

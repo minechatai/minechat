@@ -140,13 +140,15 @@ model UserChannel {
 
 // 2. AI Assistant Setup
 model AIAssistantSetup {
-  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Text
-  userId        String
-  assistantName String
-  persona       String
-  instructions  String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Text
+  userId            String
+  assistantName     String
+  introMessage      String
+  shortDescription  String
+  guidelines        String
+  responseLength    String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 // 3. Business Information (Google Doc + extracted sections)
