@@ -26,63 +26,110 @@ export interface Product {
 
 export class BusinessInfoHandler {
 
-    async fetchBusinessInfo(userId: string, onSuccess: any, onError: any) {
+    supabaseInterface: any
 
-        const { data, error } = await supabase
-            .from("BusinessInfo")
-            .select("*")
-            .eq("userId", userId)
-            .order("createdAt", { ascending: false })
-
-        if (error) throw new Error("Error fetching BusinessInfo: " + error.message)
-        
-        onSuccess(data as BusinessInfo[])
+    setSupabaseInterface(obj: any) {
+        this.supabaseInterface = obj
     }
 
-    async createBusinessInfo(userId: string, content: string, onSuccess: any, onError: any) {
+    async fetchBusinessInfo(onSuccess: any, onError: any) {
 
-        const { data, error } = await supabase
-            .from("BusinessInfo")
-            .insert([
-            {
-                id: crypto.randomUUID(),
-                userId: userId,
-                content: content.trim(),
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-            },
-            ])
-            .select()
-            .single()
-
-        if (error) throw new Error("Error creating BusinessInfo: " + error.message)
-        
-        onSuccess(data)
-    }
-
-    async updateBusinessInfo(businessId: string, content: string, onSuccess: any, onError: any) {
-      const { data, error } = await supabase
-        .from("BusinessInfo")
-        .update({ 
-            content: content.trim(), 
-            updatedAt: new Date().toISOString() }
-        )
-        .eq("id", businessId)
-        .select()
-        .single()
+      const user = this.supabaseInterface.getUser()
+      const userId = user.id
+      console.log("Current User ID:", userId)
       
-      if (error) throw new Error("Error updating BusinessInfo: " + error.message)
+      let supabase = await this.supabaseInterface.getClient()
+
+      const { data, error } = await supabase
+          .from("BusinessInfo")
+          .select("*")
+          .eq("userId", userId)
+          .order("createdAt", { ascending: false })
+          .maybeSingle()
+
+      if (error) {
+        onError(CONSTANTS.ERROR_GENERIC, error.message)
+        return
+      }
 
       onSuccess(data)
     }
 
+    async createOrUpdateBusinessInfo(businessInfo: any, onSuccess: any, onError: any) {
+
+      const user = this.supabaseInterface.getUser()
+      const userId = user.id
+      console.log("Current User ID:", userId)
+
+      let supabase = await this.supabaseInterface.getClient()
+
+      let { data, error } = await supabase
+        .from("BusinessInfo")
+        .select("*")
+        .eq("id", businessInfo.id)
+        .eq("userId", userId)
+        .maybeSingle()
+
+      console.log(data, error)
+
+      if (data == null || data.length < 1) {
+        const result = await supabase
+          .from("BusinessInfo")
+          .insert([
+          {
+            ... businessInfo,
+            id: crypto.randomUUID(),
+            userId: userId,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          ])
+          .select()
+          .maybeSingle()
+
+        data = result.data
+        error = result.error
+
+        console.log(result)
+      }
+      else {
+        const result  = await supabase
+          .from("BusinessInfo")
+          .update({
+            ... businessInfo,
+            updatedAt: new Date().toISOString(),
+          })
+          .eq("id", businessInfo.id)
+          .eq("userId", userId)
+          .select()
+          .maybeSingle()
+          
+        data = result.data
+        error = result.error       
+        
+        console.log(result)
+      }
+
+      if (error) {
+        onError(CONSTANTS.ERROR_GENERIC, error.message)
+        return
+      }
+      
+      onSuccess(data)
+    }
+
     async deleteBusinessInfo(businessId: string, onSuccess: any, onError: any) {
+        
+        let supabase = await this.supabaseInterface.getClient()
+
         const { error } = await supabase.from("BusinessInfo").delete().eq("id", businessId)
         if (error) throw new Error("Error deleting BusinessInfo: " + error.message)
         onSuccess(businessId)
     }
 
     async fetchProducts(userId: string, onSuccess: any, onError: any) {
+
+        let supabase = await this.supabaseInterface.getClient()
 
         const { data, error } = await supabase
           .from("Product")
@@ -96,6 +143,8 @@ export class BusinessInfoHandler {
     }
 
     async createProduct(userId: string, name: string, description: string, onSuccess: any, onError: any) {
+        
+        let supabase = await this.supabaseInterface.getClient()
 
         const { data, error } = await supabase
         .from("Product")
@@ -118,6 +167,9 @@ export class BusinessInfoHandler {
     }
 
     async updateProduct(productId: string, name: string, description: string, onSuccess: any, onError: any) {
+      
+      let supabase = await this.supabaseInterface.getClient()
+      
       const { data, error } = await supabase
         .from("Product")
         .update({
@@ -135,7 +187,9 @@ export class BusinessInfoHandler {
     }
 
     async deleteProduct(productId: string, onSuccess: any, onError: any) {
-        
+      
+        let supabase = await this.supabaseInterface.getClient()
+
         const { error } = await supabase.from("Product").delete().eq("id", productId)
         if (error) throw new Error("Error deleting product: " + error.message)
 
