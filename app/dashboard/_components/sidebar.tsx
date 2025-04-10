@@ -36,6 +36,10 @@ const routes = [
         href: "/dashboard/setup/aiassistant"
       },
       {
+        label: "Business Information",
+        href: "/dashboard/setup/businessinfo"
+      },
+      {
         label: "Channels",
         href: "/dashboard/setup/channels"
       },
