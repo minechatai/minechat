@@ -77,7 +77,7 @@ export function ChatWindow({ chatId }: any) {
       }
     )
 
-    return chatInterface.registerConversationTableListener(updateMessages)
+    return chatInterface.registerMessagesTableListener(updateMessages)
   }
 
   useEffect(updateMessages, [router, chatId, supabase.isReady()])
